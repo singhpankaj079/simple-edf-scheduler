@@ -1,107 +1,92 @@
-#include<bits/stdc++.h>
-using namespace std;
-typedef long long ll;
-#define pb push_back
-#define mp make_pair
+    #include<bits/stdc++.h>
+    using namespace std;
 
-struct rijs{
-	int i,j,t;
- };
- struct njs {
-	int extime, deadline, i, j;
-};
+     struct Task {
+     int phase,releaseTime, extime, period, deadline;
+    };
 
-struct compareRijs{
-   bool operator()(const rijs &a, const rijs &b){
-   	 return a.t>b.t;
-   }
-};
-struct compareNjs{
-	bool operator()(const njs &a, const njs &b){
-		return a.deadline>b.deadline;
-	}
-};
-
-
-  int findLcm(vector<pair<int,int> > &a, int n){
-  	bool found;
-  	for (int i=a[1].second;;i++){
-       found = true;
-       for (int j=1;j<=n;j++){
-       	if (i%a[j].second!=0)found=false;
-       }
-       if (found)return i;
-  	}
-  }
-  int main(){
-
-   freopen("input.txt","r" , stdin);
-
-   // to store execution times and periods of the tasks
-   vector< pair<int, int> > tasks(11);
-
-   int n, hyperPeriod;
-   njs t2;
-
-   // input the number of tasks to be scheduled
-   cin>>n;
-
-   // to keep track of the next job which is going to be released sorted on the basis of release time
-   priority_queue <rijs, vector<rijs>, compareRijs> rij;
-
-   // to keep track of the deadline and remaining execution time of a job sorted on the basis of deadline(ascending)
-   priority_queue <njs, vector<njs>, compareNjs> nj;
-
-   for (int i=1;i<=n;i++){
-     // enter execution and period of every task assuming deadline is equal to the period of each task
-   	cin>>tasks[i].first>>tasks[i].second;
-   }
+    struct Job {
+     int i, j, releaseTime, extime, deadline;
+    };
+    struct compareDeadline {
+        bool operator()(Job &a , Job &b){
+           if (a.deadline==b.deadline){
+            return a.releaseTime>b.releaseTime;
+           } else return a.deadline>b.deadline;
+        }
+    };
 
 
 
-  int j=1;
-  hyperPeriod = findLcm(tasks, n);
-  for (int i=1;i<=n;i++){
-        j=1;
-       while(tasks[i].second*(j-1)<hyperPeriod){
-        rijs temp;
-        temp.i = i;
-        temp.j = j;
-        temp.t = (j-1)*tasks[i].second;
-        rij.push(temp);
-        j++;
-       }
-  }
-
-    rijs t1;
+    int main(){
 
 
-    for (int t=0;t<hyperPeriod;t++){
-       t1 = rij.top();
-        while(!rij.empty() && t1.t<=t){
-       	rij.pop();
-        t2.i = t1.i;
-        t2.j = t1.j;
-        t2.extime = tasks[t1.i].first;
-        t2.deadline = (t1.j)*tasks[t1.i].second;
-        nj.push(t2);
-        if (rij.empty())break;
-        t1 = rij.top();
-       }
 
-       if (!nj.empty()){
-        t2 = nj.top();
-       nj.pop();
-       } else {
-           cout<<t<<" cpu idle"<<endl;
-           continue;}
-       if (t2.deadline<t){cout<<"Schedule not feasible"; return 0;}
+        freopen("input.txt", "r", stdin);
+        int noOfTasks;
+        Task tasks[100];
+        Job tempJob;
+        map<int, vector<Job> > jobReleasedAt;
+        priority_queue< Job  , vector< Job >, compareDeadline  > jobs;
+        cout<<"Enter the no of tasks"<<endl;
+        cin>>noOfTasks;
+        int MAXTIME = 20;
+        cout<<"Enter phase, extime, period and deadline of each task"<<endl;
+        for (int i=1;i<=noOfTasks;i++){
+           cin>>tasks[i].phase>>tasks[i].extime>>tasks[i].period>>tasks[i].deadline;
 
-       cout<<"at time t = "<<t<<" T("<<t2.i<<","<<t2.j<<")"<<endl;
-       t2.extime--;
-       if (t2.extime>0) {nj.push(t2);}
+           for (int j=1;(j-1)*tasks[i].period<MAXTIME; j++){ // j denotes the job no of corr. task
+                  tempJob.i = i;
+                  tempJob.j = j;
+                  tempJob.releaseTime = tasks[i].phase + (j-1)*tasks[i].period;
+                  tempJob.extime = tasks[i].extime;
+                  tempJob.deadline = tempJob.releaseTime + tasks[i].deadline;
+                  //jobs.push(tempJob);
+                  // storing job released at corr. time
+                  jobReleasedAt[tempJob.releaseTime].push_back(tempJob);
+           }
+        }
 
+
+        Job currentJob;
+        currentJob.extime= 0;
+        for (int t=0;t<=MAXTIME;t++){
+
+               for (int i=0;i<jobReleasedAt[t].size();i++){
+                 jobs.push(jobReleasedAt[t][i]);
+               }
+               // check if the job to be executed has zero execution time left
+                if (currentJob.extime<=0){
+                        if (t>0)cout<<"job ("<<currentJob.i<<","<<currentJob.j<<") completed at time:"<<t<<endl;
+                     // check if there is any job in the job queue
+                       if (!jobs.empty()){
+                        currentJob = jobs.top();
+                        jobs.pop();
+                        cout<<"job ("<<currentJob.i<<","<<currentJob.j<<") started at time:"<<t<<endl;
+                       } else cout<<"cpu idle at time:" << t<<endl;
+                } else {
+                    // check if any job has arrived just at this time
+                      if (jobReleasedAt[t].size()>0){
+                         if (currentJob.deadline>jobs.top().deadline){
+                            jobs.push(currentJob);
+                            cout<<"job ("<<currentJob.i<<","<<currentJob.j<<") preempted at time:"<<t<<endl;
+                            currentJob = jobs.top();
+                            cout<<"job ("<<currentJob.i<<","<<currentJob.j<<") started at time:"<<t<<endl;
+                            jobs.pop();
+                         }
+                      }
+
+
+
+                }
+
+               // at this second one unit of the job will be executed
+               if(currentJob.extime + t>currentJob.deadline){
+                cout<<"SCHEDULE INFEASIBLE JOB ("<<currentJob.i<<","<<currentJob.j<<") missed the deadline"<<endl;
+                break;
+               } else currentJob.extime--;
+              }
+    return 0;
     }
 
-	return 0;
-}
+
